@@ -58,20 +58,6 @@ if args.data == 'svhn':
     trainset = torchvision.datasets.SVHN(root='data', split='train', download=True, transform=transform)
     testset = torchvision.datasets.SVHN(root='data', split='test', download=True, transform=transform)
 
-class BuildDataset(Dataset):
-    def __init__(self, trainset):
-        self.data = trainset 
-        
-    def __getitem__(self, index):
-        x, y = self.data[index]
-        return x, y, index
-
-    def __len__(self):
-        return len(self.data)
-
-dataset = BuildDataset(trainset)
-
-
 # our experiments use a randomly chosen 2/3 of provided 'training data' for model fitting and the remaining 1/3 to test
 subset = np.random.permutation([i for i in range(len(trainset))])[:len(trainset)]
 sub_train = subset[:int(len(trainset) * 2/3.)]
@@ -80,7 +66,6 @@ test_loader = torch.utils.data.DataLoader(trainset, batch_size=256, sampler=Subs
 
 if args.n_samples > 1: n_samples = int(args.n_samples)
 else: n_samples = int(len(sub_train) * args.n_samples)
-
 
 class mlp(nn.Module):
     def __init__(self, nc=3, sz=32, num_classes=10):
@@ -94,19 +79,22 @@ class mlp(nn.Module):
         x = x.view(-1, self.nc * self.sz ** 2)
         return self.lm3(F.relu(self.lm2(F.relu(self.lm1(x)))))
 
+class BuildDataset(Dataset):
+    def __init__(self, trainset):
+        self.data = trainset 
+        
+    def __getitem__(self, index):
+        x, y = self.data[index]
+        return x, y, index
 
-# Model
-if args.model == 'resnet': net = resnet.ResNet18(num_classes=num_classes).cuda()
-if args.model == 'mlp': net = mlp(num_classes=num_classes).cuda()
-
-criterion = nn.CrossEntropyLoss()
-if args.opt == 'sgd': optimizer = optim.SGD(net.parameters(), lr=args.lr, weight_decay=args.decay)
-if args.opt == 'adam': optimizer = optim.Adam(net.parameters(), lr=args.lr,  weight_decay=args.decay)
+    def __len__(self):
+        return len(self.data)
 
 def train(epoch, net, loader):
     net.train()
     train_loss = 0
     total_loss = 0.
+    criterion = nn.CrossEntropyLoss()
     totalAcc = totalSamps = count = total = correct = 0
     for batch_idx, (inputs, targets, idx) in enumerate(loader):
         count += 1
@@ -136,6 +124,7 @@ def test(epoch, net):
     correct = 0
     total = 0
     net = net.cuda()
+    criterion = nn.CrossEntropyLoss()
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(test_loader):
             targets = targets.cuda()
@@ -148,7 +137,8 @@ def test(epoch, net):
         print('Test:\t' + str(epoch) + '\t' + str(test_loss/total) +'\t' + str(100.*correct/total), flush=True)
 
 def shrink_perturb(net, shrink, perturb):
-    # using a randomly-initialized model as a noise source respects how different kinds of parameters are often initialized differently
+    # using a randomly-initialized model as a noise source respects how different kinds 
+    # of parameters are often initialized differently
     if args.model == 'resnet': new_init = resnet.ResNet18(num_classes=num_classes).cuda()
     if args.model == 'mlp': new_init = mlp(num_classes=num_classes).cuda()
 
@@ -159,24 +149,24 @@ def shrink_perturb(net, shrink, perturb):
     return new_init
 
 n_train = n_samples
-currentSubset = np.asarray([])
-trainLoaderAll = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
-
+current_subset = np.asarray([])
 batch_size = args.batch_size
 lr = args.lr
 decay = args.decay
-while len(currentSubset) != len(sub_train):
+if args.model == 'resnet': net = resnet.ResNet18(num_classes=num_classes).cuda()
+if args.model == 'mlp': net = mlp(num_classes=num_classes).cuda()
+
+while len(current_subset) != len(sub_train):
 
     # get new samples
-    selectedInds = sub_train[n_train-n_samples:n_train]
-    currentSubset = np.concatenate((selectedInds, currentSubset)).astype(int)
+    selected_inds = sub_train[n_train-n_samples:n_train]
+    current_subset = np.concatenate((selected_inds, current_subset)).astype(int)
     dataset = BuildDataset(trainset)
-    train_loader = DataLoader(dataset, batch_size=batch_size, sampler=SubsetRandomSampler(currentSubset), shuffle=False)
+    train_loader = DataLoader(dataset, batch_size=batch_size, sampler=SubsetRandomSampler(current_subset), shuffle=False)
 
     # initialize network
     net = shrink_perturb(net, args.shrink, args.perturb)
     net = net.train()
-
 
     # train until reaching 99% training accuracy
     epoch = 0
@@ -186,7 +176,7 @@ while len(currentSubset) != len(sub_train):
         start = time.time()
         trainAcc, trainLoss = train(epoch, net, train_loader)
         end = time.time()
-        print('Train ' + str(len(currentSubset)) +  
+        print('Train ' + str(len(current_subset)) +  
                 ':\t' + str(epoch) + 
                 '\t' + str(trainLoss) + 
                 '\t' + str(trainAcc * 100) + 
@@ -196,7 +186,7 @@ while len(currentSubset) != len(sub_train):
     net = net.eval()
 
     # get test performance
-    test(len(currentSubset), net)
+    test(len(current_subset), net)
 
     # update dataset size
     if args.n_samples <= 1:
