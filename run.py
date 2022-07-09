@@ -1,24 +1,17 @@
-from __future__ import print_function
-import sys
 import numpy as np
-import pdb
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
-import torchvision
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
+from torchvision import datasets
 import torchvision.transforms as transforms
-import os
 import time
 import argparse
-from torch.utils.data.sampler import SubsetRandomSampler
-from copy import deepcopy
-from torchvision import datasets, transforms
 import resnet
-from torch.utils.data import Dataset, DataLoader
-from sklearn.decomposition import PCA 
+from copy import deepcopy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
@@ -48,15 +41,15 @@ transform = transforms.Compose([
 ])
 num_classes = 10
 if args.data == 'cifar10':
-    trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform)
-    testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform)
+    trainset = datasets.CIFAR10(root='data', train=True, download=True, transform=transform)
+    testset = datasets.CIFAR10(root='data', train=False, download=True, transform=transform)
 if args.data == 'cifar100':
-    trainset = torchvision.datasets.CIFAR100(root='data', train=True, download=True, transform=transform)
-    testset = torchvision.datasets.CIFAR100(root='data', train=False, download=True, transform=transform)
+    trainset = datasets.CIFAR100(root='data', train=True, download=True, transform=transform)
+    testset = datasets.CIFAR100(root='data', train=False, download=True, transform=transform)
     num_classes = 100
 if args.data == 'svhn':
-    trainset = torchvision.datasets.SVHN(root='data', split='train', download=True, transform=transform)
-    testset = torchvision.datasets.SVHN(root='data', split='test', download=True, transform=transform)
+    trainset = datasets.SVHN(root='data', split='train', download=True, transform=transform)
+    testset = datasets.SVHN(root='data', split='test', download=True, transform=transform)
 
 # our experiments use a randomly chosen 2/3 of provided 'training data' for model fitting and the remaining 1/3 to test
 subset = np.random.permutation([i for i in range(len(trainset))])[:len(trainset)]
@@ -99,7 +92,7 @@ def train(epoch, net, loader):
     for batch_idx, (inputs, targets, idx) in enumerate(loader):
         count += 1
         optimizer.zero_grad()
-        inputs, targets = Variable(inputs.cuda()), Variable(targets.cuda())
+        inputs, targets = inputs.cuda(), targets.cuda()
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
@@ -177,7 +170,7 @@ while len(current_subset) != len(sub_train):
         trainAcc, trainLoss = train(epoch, net, train_loader)
         end = time.time()
         print('Train ' + str(len(current_subset)) +  
-                ':\t' + str(epoch) + 
+                '\t' + str(epoch) + 
                 '\t' + str(trainLoss) + 
                 '\t' + str(trainAcc * 100) + 
                 '\t' + str(end-start), flush=True)
