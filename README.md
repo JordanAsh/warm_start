@@ -1,5 +1,5 @@
 # On Warm-Starting Neural Network Training
-This repository contains code to reproduce results from our 2020 NeurIPS paper [On Warm-Starting Neural Network Training](https://arxiv.org/abs/1910.08475). In it, we study the batch, online learning setting. Each time new data are added to the training set, one could either re-initialize model parameters from scratch (random initialization), initialize using parameters found by the previous round of optimization (warm start), or use our proposed strategy, which we call *shrink-perturb* initialization.
+This repository contains code to reproduce results from our 2020 NeurIPS paper [On Warm-Starting Neural Network Training](https://arxiv.org/abs/1910.08475). In it, we study the batch online learning setting. Each time new data are added to the training set, one could either re-initialize model parameters from scratch (random initialization), initialize using parameters found by the previous round of optimization (warm start), or use our proposed strategy, which we call *shrink-perturb* initialization.
 
 
 # Dependencies
