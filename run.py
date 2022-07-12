@@ -85,8 +85,7 @@ class BuildDataset(Dataset):
 
 def train(epoch, net, loader):
     net.train()
-    train_loss = 0
-    total_loss = 0.
+    total_loss = train_loss = 0.
     criterion = nn.CrossEntropyLoss()
     totalAcc = totalSamps = count = total = correct = 0
     for batch_idx, (inputs, targets, idx) in enumerate(loader):
@@ -110,12 +109,7 @@ def train(epoch, net, loader):
     return (totalAcc / totalSamps), (total_loss / count)
 
 def test(epoch, net):
-    global best_acc
-    global best_net
-    global best_iter
-    test_loss = 0
-    correct = 0
-    total = 0
+    test_loss = correct = total = 0
     net = net.cuda()
     criterion = nn.CrossEntropyLoss()
     with torch.no_grad():
